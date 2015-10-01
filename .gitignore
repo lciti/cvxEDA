@@ -1,0 +1,26 @@
+# editors
+*~
+*.bak
+
+# matlab
+*.asv
+*.mat
+
+# octave
+octave-core
+
+# latex
+*.aux
+*.bbl
+*.blg
+*.dvi
+*.idx
+*.lof
+*.log
+*.lot
+*.nav
+*.out
+*.synctex.gz
+*.thm
+*.toc
+*.vrb

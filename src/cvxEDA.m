@@ -31,7 +31,7 @@ function [r, p, t, l, d, e, obj] = cvxEDA(y, delta, varargin)
 % ______________________________________________________________________________
 %
 % File:                         cvxEDA.m
-% Last revised:                 01 Oct 2015 r67
+% Last revised:                 22 Oct 2015 r68
 % ______________________________________________________________________________
 %
 % Copyright (C) 2014-2015 Luca Citi, Alberto Greco
@@ -87,19 +87,19 @@ spl = [1:delta_knot_s delta_knot_s-1:-1:1]'; % order 1
 spl = conv(spl, spl, 'full');
 spl = spl / max(spl);
 % matrix of spline regressors
-i = bsxfun(@plus, (1:length(spl))'-floor(length(spl)/2), 1:delta_knot_s:n);
-j = repmat(1:size(i,2), length(spl), 1);
-p = repmat(spl(:), 1, size(i,2));
+i = bsxfun(@plus, (0:length(spl)-1)'-floor(length(spl)/2), 1:delta_knot_s:n);
+nB = size(i, 2);
+j = repmat(1:nB, length(spl), 1);
+p = repmat(spl(:), 1, nB);
 valid = i >= 1 & i <= n;
 B = sparse(i(valid), j(valid), p(valid));
-nB = size(B, 2);
 
 % trend
 C = [ones(n,1) (1:n)'/n];
 nC = size(C, 2);
 
 % Solve the problem:
-% .5*(M*q + B*l + C*d - y)^2 + d*alpha*sum(A,1)*p + .5*gamma*l'*l
+% .5*(M*q + B*l + C*d - y)^2 + delta*alpha*sum(A,1)*p + .5*gamma*l'*l
 % s.t. A*q >= 0
 
 if strcmpi(solver, 'quadprog')

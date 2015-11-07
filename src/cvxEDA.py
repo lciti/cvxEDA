@@ -2,7 +2,7 @@
 ______________________________________________________________________________
 
  File:                         cvxEDA.py
- Last revised:                 22 Oct 2015 r68
+ Last revised:                 07 Nov 2015 r69
  ______________________________________________________________________________
 
  Copyright (C) 2014-2015 Luca Citi, Alberto Greco
@@ -33,10 +33,11 @@ ______________________________________________________________________________
 """
 
 import numpy as np
-from cvxopt import spmatrix, matrix, sparse
-from cvxopt.solvers import qp, conelp, options
+import cvxopt as cv
+import cvxopt.solvers
 
-def cvxEDA(y, delta, tau0=2., tau1=0.7, delta_knot=10., alpha=0.4, gamma=1e-2, solver=None):
+def cvxEDA(y, delta, tau0=2., tau1=0.7, delta_knot=10., alpha=0.4, gamma=1e-2,
+           solver=None, options={'reltol':1e-9}):
     """CVXEDA Convex optimization approach to electrodermal activity processing
     
     This function implements the cvxEDA algorithm described in "cvxEDA: a
@@ -44,11 +45,7 @@ def cvxEDA(y, delta, tau0=2., tau1=0.7, delta_knot=10., alpha=0.4, gamma=1e-2, s
     (http://dx.doi.org/10.1109/TBME.2015.2474131, also available from the
     authors' homepages).
  
-    Syntax:
-    [r,p,t,l,d,e,obj] = cvxEDA(y, delta, tau0=2., tau1=0.7, delta_knot=10.,
-                                         alpha=0.4, gamma=1e-2, solver=None)
- 
-    where:
+    Arguments:
        y: observed EDA signal (we recommend normalizing it: y = zscore(y))
        delta: sampling interval (in seconds) of y
        tau0: slow time constant of the Bateman function
@@ -57,8 +54,10 @@ def cvxEDA(y, delta, tau0=2., tau1=0.7, delta_knot=10., alpha=0.4, gamma=1e-2, s
        alpha: penalization for the sparse SMNA driver
        gamma: penalization for the tonic spline coefficients
        solver: sparse QP solver to be used, see cvxopt.solvers.qp
+       options: solver options, see:
+                http://cvxopt.org/userguide/coneprog.html#algorithm-parameters
  
-    returns (see paper for details):
+    Returns (see paper for details):
        r: phasic component
        p: sparse SMNA driver of phasic component
        t: tonic component
@@ -69,7 +68,7 @@ def cvxEDA(y, delta, tau0=2., tau1=0.7, delta_knot=10., alpha=0.4, gamma=1e-2, s
     """
 
     n = len(y)
-    y = matrix(y)
+    y = cv.matrix(y)
 
     # bateman ARMA model
     a1 = 1./min(tau1, tau0) # a1 > a0
@@ -80,8 +79,8 @@ def cvxEDA(y, delta, tau0=2., tau1=0.7, delta_knot=10., alpha=0.4, gamma=1e-2, s
 
     # matrices for ARMA model
     i = np.arange(2, n)
-    A = spmatrix(np.tile(ar, (n-2,1)), np.c_[i,i,i], np.c_[i,i-1,i-2], (n,n))
-    M = spmatrix(np.tile(ma, (n-2,1)), np.c_[i,i,i], np.c_[i,i-1,i-2], (n,n))
+    A = cv.spmatrix(np.tile(ar, (n-2,1)), np.c_[i,i,i], np.c_[i,i-1,i-2], (n,n))
+    M = cv.spmatrix(np.tile(ma, (n-2,1)), np.c_[i,i,i], np.c_[i,i-1,i-2], (n,n))
 
     # spline
     delta_knot_s = int(round(delta_knot / delta))
@@ -94,35 +93,40 @@ def cvxEDA(y, delta, tau0=2., tau1=0.7, delta_knot=10., alpha=0.4, gamma=1e-2, s
     j = np.tile(np.arange(nB), (len(spl),1))
     p = np.tile(spl, (nB,1)).T
     valid = (i >= 0) & (i < n)
-    B = spmatrix(p[valid], i[valid], j[valid])
+    B = cv.spmatrix(p[valid], i[valid], j[valid])
 
     # trend
-    C = matrix(np.c_[np.ones(n), np.arange(1., n+1.)/n])
+    C = cv.matrix(np.c_[np.ones(n), np.arange(1., n+1.)/n])
     nC = C.size[1]
 
     # Solve the problem:
     # .5*(M*q + B*l + C*d - y)^2 + delta*alpha*sum(A,1)*p + .5*gamma*l'*l
     # s.t. A*q >= 0
 
+    old_options = cv.solvers.options.copy()
+    cv.solvers.options.clear()
+    cv.solvers.options.update(options)
     if solver == 'conelp':
         # Use conelp
-        z = lambda m,n: spmatrix([],[],[],(m,n))
-        G = sparse([[-A,z(2,n),M,z(nB+2,n)],[z(n+2,nC),C,z(nB+2,nC)],
+        z = lambda m,n: cv.spmatrix([],[],[],(m,n))
+        G = cv.sparse([[-A,z(2,n),M,z(nB+2,n)],[z(n+2,nC),C,z(nB+2,nC)],
                     [z(n,1),-1,1,z(n+nB+2,1)],[z(2*n+2,1),-1,1,z(nB,1)],
-                    [z(n+2,nB),B,z(2,nB),spmatrix(1.0, range(nB), range(nB))]])
-        h = matrix([z(n,1),.5,.5,y,.5,.5,z(nB,1)])
-        c = matrix([(matrix(delta*alpha, (1,n)) * A).T,z(nC,1),1,gamma,z(nB,1)])
-        res = conelp(c, G, h, dims={'l':n,'q':[n+2,nB+2],'s':[]})
+                    [z(n+2,nB),B,z(2,nB),cv.spmatrix(1.0, range(nB), range(nB))]])
+        h = cv.matrix([z(n,1),.5,.5,y,.5,.5,z(nB,1)])
+        c = cv.matrix([(cv.matrix(delta*alpha, (1,n)) * A).T,z(nC,1),1,gamma,z(nB,1)])
+        res = cv.solvers.conelp(c, G, h, dims={'l':n,'q':[n+2,nB+2],'s':[]})
         obj = res['primal objective']
     else:
         # Use qp
-        options['reltol'] = 1e-9
         Mt, Ct, Bt = M.T, C.T, B.T
-        H = sparse([[Mt*M, Ct*M, Bt*M], [Mt*C, Ct*C, Bt*C], 
-                    [Mt*B, Ct*B, Bt*B+gamma*spmatrix(1.0, range(nB), range(nB))]])
-        f = matrix([(matrix(delta*alpha, (1,n)) * A).T - Mt*y,  -(Ct*y), -(Bt*y)])
-        res = qp(H, f, spmatrix(-A.V, A.I, A.J, (n,len(f))), matrix(0., (n,1)), solver=solver)
+        H = cv.sparse([[Mt*M, Ct*M, Bt*M], [Mt*C, Ct*C, Bt*C], 
+                    [Mt*B, Ct*B, Bt*B+gamma*cv.spmatrix(1.0, range(nB), range(nB))]])
+        f = cv.matrix([(cv.matrix(delta*alpha, (1,n)) * A).T - Mt*y,  -(Ct*y), -(Bt*y)])
+        res = cv.solvers.qp(H, f, cv.spmatrix(-A.V, A.I, A.J, (n,len(f))),
+                            cv.matrix(0., (n,1)), solver=solver)
         obj = res['primal objective'] + .5 * (y.T * y)
+    cv.solvers.options.clear()
+    cv.solvers.options.update(old_options)
 
     l = res['x'][-nB:]
     d = res['x'][n:n+nC]

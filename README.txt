@@ -49,11 +49,33 @@ analysis (with default parameters) and plots the results:
 
 yn = zscore(y);
 Fs = 25;
-tm = (1:length(y))'/Fs;
-[r, p, t, l, d, e, obj] = cvxEDA(yn, 1/25);
+[r, p, t, l, d, e, obj] = cvxEDA(yn, 1/Fs);
 figure, hold all
+tm = (1:length(y))'/Fs;
 plot(tm, yn)
 plot(tm, r)
 plot(tm, p)
 plot(tm, t)
+______________________________________________________________________________
+
+To use the software with Python, simply import the cvxEDA module located in
+the src/ folder, then call the cvxEDA function. Type 'help(cvxEDA)' from the
+python shell for help on the function's syntax and input/output arguments.
+
+The software does not come with a GUI. Assuming 'y' is a numpy vector with the
+recorded EDA signal sampled at 25 Hz, the following example performs the cvxEDA
+analysis (with default parameters) and plots the results:
+
+import cvxEDA
+yn = (y - y.mean()) / y.std()
+Fs = 25.
+[r, p, t, l, d, e, obj] = cvxEDA.cvxEDA(yn, 1./Fs)
+import pylab as pl
+tm = pl.arange(1., len(y)+1.) / Fs
+pl.hold(True)
+pl.plot(tm, yn)
+pl.plot(tm, r)
+pl.plot(tm, p)
+pl.plot(tm, t)
+pl.show()
 ______________________________________________________________________________

@@ -56,14 +56,14 @@ match_dt = .15;
 % ESTIMATION
 fit_edr_model = @cvxEDA
 delta_knot = 10; % sec
-alpha = 0.4;
+alpha = 8e-4;
 gamma = 1e-2;
 tau0_step = .2;
 
 % LOOP
 t = (0:delta:T)';
 
-tic
+t0 = tic();
 for j = num_runs:-1:1
     
     % smna
@@ -110,8 +110,10 @@ for j = num_runs:-1:1
         PPV(j,nn) = mean(test_pair > 0);
     end
 
+    fprintf('%d of %d (ETA: %s)\n', j, num_runs, ...
+            datestr(now()+toc(t0)/86400*(j-1)/(num_runs-j+1)))
 end
-toc
+toc(t0)
 
 figure
 plot(tau0_, res_e)

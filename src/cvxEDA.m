@@ -99,13 +99,13 @@ C = [ones(n,1) (1:n)'/n];
 nC = size(C, 2);
 
 % Solve the problem:
-% .5*(M*q + B*l + C*d - y)^2 + delta*alpha*sum(A,1)*p + .5*gamma*l'*l
+% .5*(M*q + B*l + C*d - y)^2 + alpha*sum(A,1)*p + .5*gamma*l'*l
 % s.t. A*q >= 0
 
 if strcmpi(solver, 'quadprog')
     % Use Matlab's quadprog
     H = [M'*M, M'*C, M'*B; C'*M, C'*C, C'*B; B'*M, B'*C, B'*B+gamma*speye(nB)];
-    f = [delta*alpha*sum(A,1)'-M'*y; -(C'*y); -(B'*y)];
+    f = [alpha*sum(A,1)'-M'*y; -(C'*y); -(B'*y)];
 
     [z, obj] = quadprog(H, f, [-A zeros(n,length(f)-n)], zeros(n, 1), ...
         [], [], [], [], [], optimset('Algorithm', 'interior-point-convex', ...
@@ -120,7 +120,7 @@ elseif strcmpi(solver, 'sedumi')
          sparse(1,3*n+nC+2), 1, sparse(1,nB+1)];
     b = [sparse(n,1); y; 1; 1];
     c = sparse([n+nC+(1:n), 2*n+nC+2, 3*n+nC+4], ...
-               1, [delta*alpha*ones(1,n), 1, gamma], 3*n+nC+nB+4, 1);
+               1, [alpha*ones(1,n), 1, gamma], 3*n+nC+nB+4, 1);
     K = struct('f', n+nC, 'l', n, 'r', [2+n 2+nB]);
     pars.eps = 1e-6;
     pars.chol.maxuden = 1e2;

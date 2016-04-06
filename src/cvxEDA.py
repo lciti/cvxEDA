@@ -100,7 +100,7 @@ def cvxEDA(y, delta, tau0=2., tau1=0.7, delta_knot=10., alpha=0.4, gamma=1e-2,
     nC = C.size[1]
 
     # Solve the problem:
-    # .5*(M*q + B*l + C*d - y)^2 + delta*alpha*sum(A,1)*p + .5*gamma*l'*l
+    # .5*(M*q + B*l + C*d - y)^2 + alpha*sum(A,1)*p + .5*gamma*l'*l
     # s.t. A*q >= 0
 
     old_options = cv.solvers.options.copy()
@@ -113,7 +113,7 @@ def cvxEDA(y, delta, tau0=2., tau1=0.7, delta_knot=10., alpha=0.4, gamma=1e-2,
                     [z(n,1),-1,1,z(n+nB+2,1)],[z(2*n+2,1),-1,1,z(nB,1)],
                     [z(n+2,nB),B,z(2,nB),cv.spmatrix(1.0, range(nB), range(nB))]])
         h = cv.matrix([z(n,1),.5,.5,y,.5,.5,z(nB,1)])
-        c = cv.matrix([(cv.matrix(delta*alpha, (1,n)) * A).T,z(nC,1),1,gamma,z(nB,1)])
+        c = cv.matrix([(cv.matrix(alpha, (1,n)) * A).T,z(nC,1),1,gamma,z(nB,1)])
         res = cv.solvers.conelp(c, G, h, dims={'l':n,'q':[n+2,nB+2],'s':[]})
         obj = res['primal objective']
     else:
@@ -121,7 +121,7 @@ def cvxEDA(y, delta, tau0=2., tau1=0.7, delta_knot=10., alpha=0.4, gamma=1e-2,
         Mt, Ct, Bt = M.T, C.T, B.T
         H = cv.sparse([[Mt*M, Ct*M, Bt*M], [Mt*C, Ct*C, Bt*C], 
                     [Mt*B, Ct*B, Bt*B+gamma*cv.spmatrix(1.0, range(nB), range(nB))]])
-        f = cv.matrix([(cv.matrix(delta*alpha, (1,n)) * A).T - Mt*y,  -(Ct*y), -(Bt*y)])
+        f = cv.matrix([(cv.matrix(alpha, (1,n)) * A).T - Mt*y,  -(Ct*y), -(Bt*y)])
         res = cv.solvers.qp(H, f, cv.spmatrix(-A.V, A.I, A.J, (n,len(f))),
                             cv.matrix(0., (n,1)), solver=solver)
         obj = res['primal objective'] + .5 * (y.T * y)

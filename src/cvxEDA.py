@@ -36,15 +36,15 @@ import numpy as np
 import cvxopt as cv
 import cvxopt.solvers
 
-def cvxEDA(y, delta, tau0=2., tau1=0.7, delta_knot=10., alpha=0.4, gamma=1e-2,
+def cvxEDA(y, delta, tau0=2., tau1=0.7, delta_knot=10., alpha=8e-4, gamma=1e-2,
            solver=None, options={'reltol':1e-9}):
     """CVXEDA Convex optimization approach to electrodermal activity processing
-    
+
     This function implements the cvxEDA algorithm described in "cvxEDA: a
     Convex Optimization Approach to Electrodermal Activity Processing"
     (http://dx.doi.org/10.1109/TBME.2015.2474131, also available from the
     authors' homepages).
- 
+
     Arguments:
        y: observed EDA signal (we recommend normalizing it: y = zscore(y))
        delta: sampling interval (in seconds) of y
@@ -56,7 +56,7 @@ def cvxEDA(y, delta, tau0=2., tau1=0.7, delta_knot=10., alpha=0.4, gamma=1e-2,
        solver: sparse QP solver to be used, see cvxopt.solvers.qp
        options: solver options, see:
                 http://cvxopt.org/userguide/coneprog.html#algorithm-parameters
- 
+
     Returns (see paper for details):
        r: phasic component
        p: sparse SMNA driver of phasic component

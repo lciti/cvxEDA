@@ -15,7 +15,7 @@ function [r, p, t, l, d, e, obj] = cvxEDA(y, delta, varargin)
 %      tau0: slow time constant of the Bateman function (default 2.0)
 %      tau1: fast time constant of the Bateman function (default 0.7)
 %      delta_knot: time between knots of the tonic spline function (default 10)
-%      alpha: penalization for the sparse SMNA driver (default 0.4)
+%      alpha: penalization for the sparse SMNA driver (default 0.0008)
 %      gamma: penalization for the tonic spline coefficients (default 0.01)
 %      solver: sparse QP solver to be used, 'quadprog' (default) or 'sedumi'
 %
@@ -35,16 +35,16 @@ function [r, p, t, l, d, e, obj] = cvxEDA(y, delta, varargin)
 % ______________________________________________________________________________
 %
 % Copyright (C) 2014-2015 Luca Citi, Alberto Greco
-% 
+%
 % This program is free software; you can redistribute it and/or modify it under
 % the terms of the GNU General Public License as published by the Free Software
 % Foundation; either version 3 of the License, or (at your option) any later
 % version.
-% 
+%
 % This program is distributed in the hope that it will be useful, but WITHOUT
 % ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 % FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
-% 
+%
 % You may contact the author by e-mail (lciti@ieee.org).
 % ______________________________________________________________________________
 %
@@ -61,7 +61,7 @@ function [r, p, t, l, d, e, obj] = cvxEDA(y, delta, varargin)
 % ______________________________________________________________________________
 
 % parse arguments
-params = {2, 0.7, 10, 0.4, 1e-2, 'quadprog'};
+params = {2, 0.7, 10, 8e-4, 1e-2, 'quadprog'};
 i = ~cellfun(@isempty, varargin);
 params(i) = varargin(i);
 [tau0, tau1, delta_knot, alpha, gamma, solver] = deal(params{:});

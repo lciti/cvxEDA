@@ -35,7 +35,7 @@ The software does not come with a GUI. Assuming 'y' is a numpy vector with the
 recorded EDA signal sampled at 25 Hz, the following example performs the cvxEDA
 analysis (with default parameters) and plots the results:
 
-```{python}
+```python
 import cvxEDA
 yn = (y - y.mean()) / y.std()
 Fs = 25.

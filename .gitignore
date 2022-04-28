@@ -1,3 +1,9 @@
+# python
+__pycache__/
+
+# macos
+.DS_Store
+
 # editors
 *~
 *.bak

@@ -32,22 +32,23 @@ ______________________________________________________________________________
  ______________________________________________________________________________
 """
 
-import numpy as np
-import cvxopt as cv
-import cvxopt.solvers
+from typing import Any, Callable
+from numpy import array, arange, ndarray, tile, r_, c_, convolve, ones
+from cvxopt import matrix, spmatrix, sparse, solvers
 
 
 def cvxEDA(
-    y,
-    delta,
-    tau0=2.0,
-    tau1=0.7,
-    delta_knot=10.0,
-    alpha=8e-4,
-    gamma=1e-2,
-    solver=None,
-    options={"reltol": 1e-9},
-):
+    y: ndarray,
+    delta: int | float,
+    tau0: float = 2.0,
+    tau1: float = 0.7,
+    delta_knot: float = 10.0,
+    alpha: float = 8e-4,
+    gamma: float = 1e-2,
+    solver: Callable | None = None,
+    options: dict[str, Any] = {"reltol": 1e-9},
+) -> list[float]:
+    # TODO: figure out the actual output format of this method
     """CVXEDA Convex optimization approach to electrodermal activity processing
 
     This function implements the cvxEDA algorithm described in "cvxEDA: a
@@ -78,99 +79,93 @@ def cvxEDA(
     """
 
     n = len(y)
-    y = cv.matrix(y)
+    y = matrix(y)
 
     # bateman ARMA model
     a1 = 1.0 / min(tau1, tau0)  # a1 > a0
     a0 = 1.0 / max(tau1, tau0)
-    ar = np.array(
+    ar = array(
         [
             (a1 * delta + 2.0) * (a0 * delta + 2.0),
             2.0 * a1 * a0 * delta**2 - 8.0,
             (a1 * delta - 2.0) * (a0 * delta - 2.0),
         ]
     ) / ((a1 - a0) * delta**2)
-    ma = np.array([1.0, 2.0, 1.0])
+    ma = array([1.0, 2.0, 1.0])
 
     # matrices for ARMA model
-    i = np.arange(2, n)
-    A = cv.spmatrix(
-        np.tile(ar, (n - 2, 1)), np.c_[i, i, i], np.c_[i, i - 1, i - 2], (n, n)
-    )
-    M = cv.spmatrix(
-        np.tile(ma, (n - 2, 1)), np.c_[i, i, i], np.c_[i, i - 1, i - 2], (n, n)
-    )
+    i = arange(2, n)
+    A = spmatrix(tile(ar, (n - 2, 1)), c_[i, i, i], c_[i, i - 1, i - 2], (n, n))
+    M = spmatrix(tile(ma, (n - 2, 1)), c_[i, i, i], c_[i, i - 1, i - 2], (n, n))
 
     # spline
     delta_knot_s = int(round(delta_knot / delta))
-    spl = np.r_[
-        np.arange(1.0, delta_knot_s), np.arange(delta_knot_s, 0.0, -1.0)
-    ]  # order 1
-    spl = np.convolve(spl, spl, "full")
+    spl = r_[arange(1.0, delta_knot_s), arange(delta_knot_s, 0.0, -1.0)]  # order 1
+    spl = convolve(spl, spl, "full")
     spl /= max(spl)
     # matrix of spline regressors
     i = (
-        np.c_[np.arange(-(len(spl) // 2), (len(spl) + 1) // 2)]
-        + np.r_[np.arange(0, n, delta_knot_s)]
+        c_[arange(-(len(spl) // 2), (len(spl) + 1) // 2)]
+        + r_[arange(0, n, delta_knot_s)]
     )
     nB = i.shape[1]
-    j = np.tile(np.arange(nB), (len(spl), 1))
-    p = np.tile(spl, (nB, 1)).T
+    j = tile(arange(nB), (len(spl), 1))
+    p = tile(spl, (nB, 1)).T
     valid = (i >= 0) & (i < n)
-    B = cv.spmatrix(p[valid], i[valid], j[valid])
+    B = spmatrix(p[valid], i[valid], j[valid])
 
     # trend
-    C = cv.matrix(np.c_[np.ones(n), np.arange(1.0, n + 1.0) / n])
+    C = matrix(c_[ones(n), arange(1.0, n + 1.0) / n])
     nC = C.size[1]
 
     # Solve the problem:
     # .5*(M*q + B*l + C*d - y)^2 + alpha*sum(A,1)*p + .5*gamma*l'*l
     # s.t. A*q >= 0
 
-    old_options = cv.solvers.options.copy()
-    cv.solvers.options.clear()
-    cv.solvers.options.update(options)
+    old_options = solvers.options.copy()
+    solvers.options.clear()
+    solvers.options.update(options)
     if solver == "conelp":
         # Use conelp
-        z = lambda m, n: cv.spmatrix([], [], [], (m, n))
-        G = cv.sparse(
+        z = lambda m, n: spmatrix([], [], [], (m, n))
+        G = sparse(
             [
                 [-A, z(2, n), M, z(nB + 2, n)],
                 [z(n + 2, nC), C, z(nB + 2, nC)],
                 [z(n, 1), -1, 1, z(n + nB + 2, 1)],
                 [z(2 * n + 2, 1), -1, 1, z(nB, 1)],
-                [z(n + 2, nB), B, z(2, nB), cv.spmatrix(1.0, range(nB), range(nB))],
+                [z(n + 2, nB), B, z(2, nB), spmatrix(1.0, range(nB), range(nB))],
             ]
         )
-        h = cv.matrix([z(n, 1), 0.5, 0.5, y, 0.5, 0.5, z(nB, 1)])
-        c = cv.matrix([(cv.matrix(alpha, (1, n)) * A).T, z(nC, 1), 1, gamma, z(nB, 1)])
-        res = cv.solvers.conelp(c, G, h, dims={"l": n, "q": [n + 2, nB + 2], "s": []})
+        h = matrix([z(n, 1), 0.5, 0.5, y, 0.5, 0.5, z(nB, 1)])
+        c = matrix([(matrix(alpha, (1, n)) * A).T, z(nC, 1), 1, gamma, z(nB, 1)])
+        res = solvers.conelp(c, G, h, dims={"l": n, "q": [n + 2, nB + 2], "s": []})
         obj = res["primal objective"]
     else:
         # Use qp
         Mt, Ct, Bt = M.T, C.T, B.T
-        H = cv.sparse(
+        H = sparse(
             [
                 [Mt * M, Ct * M, Bt * M],
                 [Mt * C, Ct * C, Bt * C],
                 [
                     Mt * B,
                     Ct * B,
-                    Bt * B + gamma * cv.spmatrix(1.0, range(nB), range(nB)),
+                    Bt * B + gamma * spmatrix(1.0, range(nB), range(nB)),
                 ],
             ]
         )
-        f = cv.matrix([(cv.matrix(alpha, (1, n)) * A).T - Mt * y, -(Ct * y), -(Bt * y)])
-        res = cv.solvers.qp(
+        f = matrix([(matrix(alpha, (1, n)) * A).T - Mt * y, -(Ct * y), -(Bt * y)])
+        res = solvers.qp(
             H,
             f,
-            cv.spmatrix(-A.V, A.I, A.J, (n, len(f))),
-            cv.matrix(0.0, (n, 1)),
+            spmatrix(-A.V, A.I, A.J, (n, len(f))),
+            matrix(0.0, (n, 1)),
             solver=solver,
         )
         obj = res["primal objective"] + 0.5 * (y.T * y)
-    cv.solvers.options.clear()
-    cv.solvers.options.update(old_options)
+    solvers.options.clear()
+    solvers.options.update(old_options)
 
     l = res["x"][-nB:]
     d = res["x"][n : n + nC]
@@ -180,4 +175,4 @@ def cvxEDA(
     r = M * q
     e = y - r - t
 
-    return (np.array(a).ravel() for a in (r, p, t, l, d, e, obj))
+    return (array(a).ravel() for a in (r, p, t, l, d, e, obj))

@@ -47,7 +47,7 @@ def cvxEDA(
     gamma: float = 1e-2,
     solver: Callable | None = None,
     options: dict[str, Any] = {"reltol": 1e-9},
-) -> list[float]:
+) -> dict[str, ndarray]:
     # TODO: figure out the actual output format of this method
     """CVXEDA Convex optimization approach to electrodermal activity processing
 
@@ -167,12 +167,19 @@ def cvxEDA(
     solvers.options.clear()
     solvers.options.update(old_options)
 
-    l = res["x"][-nB:]
-    d = res["x"][n : n + nC]
-    t = B * l + C * d
-    q = res["x"][:n]
-    p = A * q
-    r = M * q
-    e = y - r - t
+    l: ndarray = res["x"][-nB:]
+    d: ndarray = res["x"][n : n + nC]
+    t: ndarray = B * l + C * d
+    q: ndarray = res["x"][:n]
+    p: ndarray = A * q
+    r: ndarray = M * q
+    e: ndarray = y - r - t
 
-    return (array(a).ravel() for a in (r, p, t, l, d, e, obj))
+    return {
+        "phasic component": r,
+        "tonic component": t,
+        "tonic spline coefficients": l,
+        "linear drift term offet and slope": d,
+        "model residuals": e,
+        "objective function value": obj,
+    }

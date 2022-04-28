@@ -72,4 +72,4 @@ to cite the reference above in their published research.
 - [x] Implement pip installable
 - [x] Remove matlab implementation
 - [ ] Publish the package on pip (?)
-- [ ] Setup some pytests
+- [x] Setup some pytests

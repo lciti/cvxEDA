@@ -69,6 +69,6 @@ to cite the reference above in their published research.
 ----------------------------------------------------------------------------
 ## TODOs
 
-[ ] Implement pip installable
-[ ] Remove matlab implementation
-[ ] Publish the package on pip (?)
+- [ ] Implement pip installable
+- [ ] Remove matlab implementation
+- [ ] Publish the package on pip (?)

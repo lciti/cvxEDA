@@ -167,19 +167,19 @@ def cvxEDA(
     solvers.options.clear()
     solvers.options.update(old_options)
 
-    l: ndarray = array(res["x"][-nB:])
-    d: ndarray = array(res["x"][n : n + nC])
-    t: ndarray = array(B * l + C * d)
-    q: ndarray = array(res["x"][:n])
-    p: ndarray = array(A * q)
-    r: ndarray = array(M * q)
-    e: ndarray = array(y - r - t)
+    l = res["x"][-nB:]
+    d = res["x"][n : n + nC]
+    t = B * l + C * d
+    q = res["x"][:n]
+    p = A * q
+    r = M * q
+    e = y - r - t
 
     return {
-        "phasic component": r,
-        "tonic component": t,
-        "tonic spline coefficients": l,
-        "linear drift term offet and slope": d,
-        "model residuals": e,
-        "objective function value": obj,
+        "phasic component": array(r).ravel(),
+        "tonic component": array(t).ravel(),
+        "tonic spline coefficients": array(l).ravel(),
+        "linear drift term offet and slope": array(d).ravel(),
+        "model residuals": array(e).ravel(),
+        "objective function value": array(obj).ravel(),
     }

@@ -167,13 +167,13 @@ def cvxEDA(
     solvers.options.clear()
     solvers.options.update(old_options)
 
-    l: ndarray = res["x"][-nB:]
-    d: ndarray = res["x"][n : n + nC]
-    t: ndarray = B * l + C * d
-    q: ndarray = res["x"][:n]
-    p: ndarray = A * q
-    r: ndarray = M * q
-    e: ndarray = y - r - t
+    l: ndarray = array(res["x"][-nB:])
+    d: ndarray = array(res["x"][n : n + nC])
+    t: ndarray = array(B * l + C * d)
+    q: ndarray = array(res["x"][:n])
+    p: ndarray = array(A * q)
+    r: ndarray = array(M * q)
+    e: ndarray = array(y - r - t)
 
     return {
         "phasic component": r,

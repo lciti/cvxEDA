@@ -39,7 +39,8 @@ analysis (with default parameters) and plots the results:
 import cvxEDA
 yn = (y - y.mean()) / y.std()
 Fs = 25.
-[r, p, t, l, d, e, obj] = cvxEDA.cvxEDA(yn, 1./Fs)
+cvxeda_results: dict = cvxEDA.cvxEDA(yn, 1./Fs)
+[r, p, t, l, d, e, obj] = cvxeda_results.values()
 import pylab as pl
 tm = pl.arange(1., len(y)+1.) / Fs
 pl.hold(True)

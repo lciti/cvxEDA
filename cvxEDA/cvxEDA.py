@@ -32,20 +32,20 @@ ______________________________________________________________________________
  ______________________________________________________________________________
 """
 
-from typing import Any, Callable
+from typing import Any, Callable, Union
 from numpy import array, arange, ndarray, tile, r_, c_, convolve, ones
 from cvxopt import matrix, spmatrix, sparse, solvers
 
 
 def cvxEDA(
     y: ndarray,
-    delta: int | float,
+    delta: Union[int, float],
     tau0: float = 2.0,
     tau1: float = 0.7,
     delta_knot: float = 10.0,
     alpha: float = 8e-4,
     gamma: float = 1e-2,
-    solver: Callable | None = None,
+    solver: Union[Callable, None] = None,
     options: dict[str, Any] = {"reltol": 1e-9},
 ) -> dict[str, ndarray]:
     # TODO: figure out the actual output format of this method
@@ -178,6 +178,7 @@ def cvxEDA(
     return {
         "phasic component": array(r).ravel(),
         "tonic component": array(t).ravel(),
+        "sparse SMNA driver of phasic component": array(p).ravel(),
         "tonic spline coefficients": array(l).ravel(),
         "linear drift term offet and slope": array(d).ravel(),
         "model residuals": array(e).ravel(),

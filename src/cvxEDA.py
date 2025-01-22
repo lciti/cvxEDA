@@ -70,6 +70,7 @@ def cvxEDA(y, delta, tau0=2., tau1=0.7, delta_knot=10., alpha=8e-4, gamma=1e-2,
     """
 
     n = len(y)
+    rangen = np.arange(n)
     y = cv.matrix(y)
 
     # bateman ARMA model
@@ -80,9 +81,10 @@ def cvxEDA(y, delta, tau0=2., tau1=0.7, delta_knot=10., alpha=8e-4, gamma=1e-2,
     ma = np.array([1., 2., 1.])
 
     # matrices for ARMA model
-    i = np.arange(2, n)
-    A = cv.spmatrix(np.tile(ar, (n - 2, 1)), np.c_[i, i, i], np.c_[i, i - 1, i - 2], (n, n))
-    M = cv.spmatrix(np.tile(ma, (n - 2, 1)), np.c_[i, i, i], np.c_[i, i - 1, i - 2], (n, n))
+    i = np.concatenate((rangen, rangen[1:], rangen[2:]))
+    j = np.concatenate((rangen, rangen[:-1], rangen[:-2]))
+    A = cv.spmatrix(np.repeat(ar, (n, n - 1, n - 2)), i, j, (n, n))
+    M = cv.spmatrix(np.repeat(ma, (n, n - 1, n - 2)), i, j, (n, n))
 
     # spline
     delta_knot_s = int(round(delta_knot / delta))

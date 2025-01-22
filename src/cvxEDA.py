@@ -88,11 +88,11 @@ def cvxEDA(y, delta, tau0=2., tau1=0.7, delta_knot=10., alpha=8e-4, gamma=1e-2,
 
     # spline
     delta_knot_s = int(round(delta_knot / delta))
-    spl = np.r_[np.arange(1., delta_knot_s), np.arange(delta_knot_s, 0., -1.)]  # order 1
+    spl = np.concatenate((np.arange(1., delta_knot_s), np.arange(delta_knot_s, 0., -1.)))  # order 1
     spl = np.convolve(spl, spl, 'full')
     spl /= max(spl)
     # matrix of spline regressors
-    i = np.c_[np.arange(-(len(spl) // 2), (len(spl) + 1) // 2)] + np.r_[np.arange(0, n, delta_knot_s)]
+    i = np.arange(-(len(spl) // 2), (len(spl) + 1) // 2)[:, None] + np.arange(0, n, delta_knot_s)[None, :]
     nB = i.shape[1]
     j = np.tile(np.arange(nB), (len(spl), 1))
     p = np.tile(spl, (nB, 1)).T
@@ -100,7 +100,7 @@ def cvxEDA(y, delta, tau0=2., tau1=0.7, delta_knot=10., alpha=8e-4, gamma=1e-2,
     B = cv.spmatrix(p[valid], i[valid], j[valid])
 
     # trend
-    C = cv.matrix(np.c_[np.ones(n), np.arange(1., n + 1.) / n])
+    C = cv.matrix(np.column_stack((np.ones(n), np.arange(1., n + 1.) / n)))
     nC = C.size[1]
 
     # Solve the problem:
@@ -127,7 +127,7 @@ def cvxEDA(y, delta, tau0=2., tau1=0.7, delta_knot=10., alpha=8e-4, gamma=1e-2,
         Mt, Ct, Bt = M.T, C.T, B.T
         H = cv.sparse([[Mt * M, Ct * M, Bt * M],
                        [Mt * C, Ct * C, Bt * C],
-                       [Mt * B, Ct * B, Bt * B + gamma * cv.spmatrix(1., range(nB), range(nB))]])
+                       [Mt * B, Ct * B, Bt * B + cv.spmatrix(gamma, range(nB), range(nB))]])
         f = cv.matrix([(cv.matrix(alpha, (1, n)) * A).T - Mt * y, -(Ct * y), -(Bt * y)])
         res = cv.solvers.qp(H, f, cv.spmatrix(-A.V, A.I, A.J, (n, len(f))), cv.matrix(0., (n, 1)), solver=solver)
         obj = res['primal objective'] + .5 * (y.T * y)

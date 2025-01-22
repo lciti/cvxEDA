@@ -92,7 +92,8 @@ def cvxEDA(y, delta, tau0=2., tau1=0.7, delta_knot=10., alpha=8e-4, gamma=1e-2,
     spl = np.convolve(spl, spl, 'full')
     spl /= max(spl)
     # matrix of spline regressors
-    i = np.arange(-(len(spl) // 2), (len(spl) + 1) // 2)[:, None] + np.arange(0, n, delta_knot_s)[None, :]
+    i = (np.arange(-(len(spl) // 2), (len(spl) + 1) // 2)[:, None] +
+         np.arange(0, n + delta_knot_s // 2, delta_knot_s)[None, :])
     nB = i.shape[1]
     j = np.tile(np.arange(nB), (len(spl), 1))
     p = np.tile(spl, (nB, 1)).T

@@ -5,6 +5,7 @@ ______________________________________________________________________________
  Revisions:
     - 07 Nov 2015 First public release
     - 07 Feb 2017 Fixed default alpha to same as paper (8e-4)
+    - 22 Jan 2025 Improved boundary behaviour and enhanced knot specification
  ______________________________________________________________________________
 
  Copyright (C) 2014-2015 Luca Citi, Alberto Greco

@@ -52,7 +52,9 @@ def cvxEDA(y, delta, tau0=2., tau1=0.7, delta_knot=10., alpha=8e-4, gamma=1e-2,
        delta: sampling interval (in seconds) of y
        tau0: slow time constant of the Bateman function
        tau1: fast time constant of the Bateman function
-       delta_knot: time between knots of the tonic spline function
+       delta_knot: specifies the knots of the tonic spline function; can be a
+                   single value (in seconds) representing the spacing between
+                   knots, or an array of equally spaced knot sample indices
        alpha: penalization for the sparse SMNA driver
        gamma: penalization for the tonic spline coefficients
        solver: sparse QP solver to be used, see cvxopt.solvers.qp
@@ -87,13 +89,17 @@ def cvxEDA(y, delta, tau0=2., tau1=0.7, delta_knot=10., alpha=8e-4, gamma=1e-2,
     M = cv.spmatrix(np.repeat(ma, (n, n - 1, n - 2)), i, j, (n, n))
 
     # spline
-    delta_knot_s = int(round(delta_knot / delta))
+    if np.size(delta_knot) == 1:  # standard usage: delta_knot represents the interval in seconds between knots
+        delta_knot_s = int(round(delta_knot / delta))
+        knots = np.arange(0, n + delta_knot_s // 2, delta_knot_s)
+    else:  # advanced usage: delta_knot represents an array with indices of the spline knots
+        knots = np.reshape(delta_knot, -1)
+        delta_knot_s = knots[1] - knots[0]
     spl = np.concatenate((np.arange(1., delta_knot_s), np.arange(delta_knot_s, 0., -1.)))  # order 1
     spl = np.convolve(spl, spl, 'full')
     spl /= max(spl)
     # matrix of spline regressors
-    i = (np.arange(-(len(spl) // 2), (len(spl) + 1) // 2)[:, None] +
-         np.arange(0, n + delta_knot_s // 2, delta_knot_s)[None, :])
+    i = np.arange(-(len(spl) // 2), (len(spl) + 1) // 2)[:, None] + knots[None, :]
     nB = i.shape[1]
     j = np.tile(np.arange(nB), (len(spl), 1))
     p = np.tile(spl, (nB, 1)).T

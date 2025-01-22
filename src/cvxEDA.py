@@ -2,7 +2,9 @@
 ______________________________________________________________________________
 
  File:                         cvxEDA.py
- Last revised:                 07 Nov 2015 r69
+ Revisions:
+    - 07 Nov 2015 First public release
+    - 07 Feb 2017 Fixed default alpha to same as paper (8e-4)
  ______________________________________________________________________________
 
  Copyright (C) 2014-2015 Luca Citi, Alberto Greco
@@ -100,7 +102,7 @@ def cvxEDA(y, delta, tau0=2., tau1=0.7, delta_knot=10., alpha=8e-4, gamma=1e-2,
     nC = C.size[1]
 
     # Solve the problem:
-    # .5*(M*q + B*l + C*d - y)^2 + alpha*sum(A,1)*p + .5*gamma*l'*l
+    # .5*(M*q + B*l + C*d - y)^2 + alpha*sum(A,1)*q + .5*gamma*l'*l
     # s.t. A*q >= 0
 
     old_options = cv.solvers.options.copy()

@@ -61,7 +61,8 @@ def cvxEDA(y, delta, tau0=2., tau1=0.7, delta_knot=10., alpha=8e-4, gamma=1e-2,
        solver: sparse QP solver to be used, see cvxopt.solvers.qp
        options: solver options, see:
                 http://cvxopt.org/userguide/coneprog.html#algorithm-parameters
-       baseline_correction: baseline correction: 0=none, 1=constant, 2=linear
+       baseline_correction: baseline correction: 0=none, 1=constant, 2=linear,
+                'spline_offset'=non-penalised spline offset
 
     Returns (see paper for details):
        r: phasic component
@@ -108,9 +109,13 @@ def cvxEDA(y, delta, tau0=2., tau1=0.7, delta_knot=10., alpha=8e-4, gamma=1e-2,
     valid = (i >= 0) & (i < n)
     B = cv.spmatrix(p[valid], i[valid], j[valid])
 
-    # baseline correction (0=none, 1=constant, 2=linear)
-    nC = baseline_correction
-    C = cv.matrix(1., (n, nC)) if nC < 2 else cv.matrix(np.column_stack((np.ones(n), np.arange(1., n + 1.) / n)))
+    # baseline correction (0=none, 1=constant, 2=linear, 'spline_offset'=non-penalised spline offset)
+    if baseline_correction == 'spline_offset':
+        C = B * cv.matrix(1., (nB, 1))
+        nC = 1
+    else:
+        nC = baseline_correction
+        C = cv.matrix(1., (n, nC)) if nC < 2 else cv.matrix(np.column_stack((np.ones(n), np.arange(1., n + 1.) / n)))
 
     # Solve the problem:
     # .5*(M*q + B*l + C*d - y)^2 + alpha*sum(A,1)*q + .5*gamma*l'*l

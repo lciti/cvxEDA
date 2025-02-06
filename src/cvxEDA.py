@@ -6,9 +6,10 @@ ______________________________________________________________________________
     - 07 Nov 2015 First public release
     - 07 Feb 2017 Fixed default alpha to same as paper (8e-4)
     - 22 Jan 2025 Improved boundary behaviour and enhanced knot specification
+    - 06 Feb 2025 Expanded baseline correction options
  ______________________________________________________________________________
 
- Copyright (C) 2014-2015 Luca Citi, Alberto Greco
+ Copyright (C) 2014-2025 Luca Citi, Alberto Greco
 
  This program is free software; you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software

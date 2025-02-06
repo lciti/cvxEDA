@@ -40,7 +40,7 @@ import cvxopt as cv
 import cvxopt.solvers
 
 def cvxEDA(y, delta, tau0=2., tau1=0.7, delta_knot=10., alpha=8e-4, gamma=1e-2,
-           solver=None, options={'reltol': 1e-9}, baseline_correction=2):
+           solver=None, options={}, baseline_correction=2):
     """CVXEDA Convex optimization approach to electrodermal activity processing
 
     This function implements the cvxEDA algorithm described in "cvxEDA: a
@@ -121,9 +121,11 @@ def cvxEDA(y, delta, tau0=2., tau1=0.7, delta_knot=10., alpha=8e-4, gamma=1e-2,
     # .5*(M*q + B*l + C*d - y)^2 + alpha*sum(A,1)*q + .5*gamma*l'*l
     # s.t. A*q >= 0
 
+    default_options = {'reltol': 1e-9}
     old_options = cv.solvers.options.copy()
     cv.solvers.options.clear()
-    cv.solvers.options.update(options)
+    cv.solvers.options.update(default_options)  # set our default options
+    cv.solvers.options.update(options)          # allow user options to extend or overwrite default options
     if solver == 'conelp':
         # Use conelp
         z = lambda m, n: cv.spmatrix([], [], [], (m, n))

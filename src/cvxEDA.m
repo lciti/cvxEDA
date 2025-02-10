@@ -7,17 +7,22 @@ function [r, p, t, l, d, e, obj] = cvxEDA(y, delta, varargin)
 %
 %   Syntax:
 %   [r, p, t, l, d, e, obj] = cvxEDA(y, delta, tau0, tau1, delta_knot,
-%                                    alpha, gamma, solver)
+%                                    alpha, gamma, solver, baseline_correction)
 %
 %   where:
 %      y: observed EDA signal (we recommend normalizing it: y = zscore(y))
 %      delta: sampling interval (in seconds) of y
 %      tau0: slow time constant of the Bateman function (default 2.0)
 %      tau1: fast time constant of the Bateman function (default 0.7)
-%      delta_knot: time between knots of the tonic spline function (default 10)
+%      delta_knot: specifies the knots of the tonic spline function; can be a
+%                  single value (in seconds, default 10) representing the
+%                  spacing between knots, or an array of equally spaced knot
+%                  sample indices
 %      alpha: penalization for the sparse SMNA driver (default 0.0008)
 %      gamma: penalization for the tonic spline coefficients (default 0.01)
 %      solver: sparse QP solver to be used, 'quadprog' (default) or 'sedumi'
+%      baseline_correction: baseline correction: 0=none, 1=constant, 2=linear,
+%                  'spline_offset'=non-penalised spline offset (default 2)
 %
 %   returns (see paper for details):
 %      r: phasic component
@@ -31,10 +36,14 @@ function [r, p, t, l, d, e, obj] = cvxEDA(y, delta, varargin)
 % ______________________________________________________________________________
 %
 % File:                         cvxEDA.m
-% Last revised:                 22 Oct 2015 r68
+% Revisions:
+%    - 07 Nov 2015 First public release
+%    - 07 Feb 2017 Fixed default alpha to same as paper (8e-4)
+%    - 07 Feb 2025 Improved boundary behaviour and enhanced knot specification
+%    - 07 Feb 2025 Expanded baseline correction options
 % ______________________________________________________________________________
 %
-% Copyright (C) 2014-2015 Luca Citi, Alberto Greco
+% Copyright (C) 2014-2025 Luca Citi, Alberto Greco
 %
 % This program is free software; you can redistribute it and/or modify it under
 % the terms of the GNU General Public License as published by the Free Software
@@ -61,10 +70,10 @@ function [r, p, t, l, d, e, obj] = cvxEDA(y, delta, varargin)
 % ______________________________________________________________________________
 
 % parse arguments
-params = {2, 0.7, 10, 8e-4, 1e-2, 'quadprog'};
+params = {2, 0.7, 10, 8e-4, 1e-2, 'quadprog', 2};
 i = ~cellfun(@isempty, varargin);
 params(i) = varargin(i);
-[tau0, tau1, delta_knot, alpha, gamma, solver] = deal(params{:});
+[tau0, tau1, delta_knot, alpha, gamma, solver, baseline_correction] = deal(params{:});
 
 n = length(y);
 y = y(:);
@@ -77,29 +86,42 @@ ar = [(a1*delta + 2) * (a0*delta + 2), 2*a1*a0*delta^2 - 8, ...
 ma = [1 2 1];
 
 % matrices for ARMA model
-i = 3:n;
-A = sparse([i i i], [i i-1 i-2], repmat(ar, n-2, 1), n, n);
-M = sparse([i i i], [i i-1 i-2], repmat(ma, n-2, 1), n, n);
+A = spdiags(ar(ones(n, 1), :), [0 -1 -2], n, n);
+M = spdiags(ma(ones(n, 1), :), [0 -1 -2], n, n);
 
 % spline
 delta_knot_s = round(delta_knot / delta);
+
+if length(delta_knot) == 1  % standard usage: delta_knot represents the interval in seconds between knots
+    delta_knot_s = round(delta_knot / delta);
+    knots = 1:delta_knot_s:n+delta_knot_s/2;
+else  % advanced usage: delta_knot represents an array with indices of the spline knots
+    knots = delta_knot;
+    delta_knot_s = knots(2) - knots(1);
+end
 spl = [1:delta_knot_s delta_knot_s-1:-1:1]'; % order 1
 spl = conv(spl, spl, 'full');
 spl = spl / max(spl);
 % matrix of spline regressors
-i = bsxfun(@plus, (0:length(spl)-1)'-floor(length(spl)/2), 1:delta_knot_s:n);
+i = bsxfun(@plus, (0:length(spl)-1)' - floor(length(spl)/2), knots);
 nB = size(i, 2);
 j = repmat(1:nB, length(spl), 1);
 p = repmat(spl(:), 1, nB);
 valid = i >= 1 & i <= n;
 B = sparse(i(valid), j(valid), p(valid));
 
-% trend
-C = [ones(n,1) (1:n)'/n];
+% baseline correction (0=none, 1=constant, 2=linear, 'spline_offset'=non-penalised spline offset)
+if strcmp(baseline_correction, 'spline_offset')
+    C = B * ones(nB, 1);
+elseif baseline_correction < 2
+    C = ones(n, baseline_correction);
+else
+    C = [ones(n, 1) (1:n)'/n];
+end
 nC = size(C, 2);
 
 % Solve the problem:
-% .5*(M*q + B*l + C*d - y)^2 + alpha*sum(A,1)*p + .5*gamma*l'*l
+% .5*(M*q + B*l + C*d - y)^2 + alpha*sum(A,1)*q + .5*gamma*l'*l
 % s.t. A*q >= 0
 
 if strcmpi(solver, 'quadprog')

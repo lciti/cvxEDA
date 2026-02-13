@@ -22,6 +22,14 @@ The model is physiologically inspired and fully explains EDA through a
 rigorous methodology based on Bayesian statistics, convex optimisation and
 sparsity.
 
+## Getting started
+
+Add the `matlab/` folder to your MATLAB/Octave path
+
+```matlab
+addpath(genpath('path/to/cvxeda/matlab'));
+```
+
 ## Quick example
 
 ```matlab

@@ -22,6 +22,24 @@ The model is physiologically inspired and fully explains EDA through a
 rigorous methodology based on Bayesian statistics, convex optimisation and
 sparsity.
 
+## Installation
+
+```bash
+# ── From PyPI (recommended)
+pip install cvxeda                                # latest release
+pip install "cvxeda==1.0.0"                       # or a specific version
+
+# ── Directly from GitHub
+pip install git+https://github.com/lciti/cvxEDA.git         # latest commit
+pip install git+https://github.com/lciti/cvxEDA.git@v1.0.0  # or a specific version
+
+# ── From a local clone
+git clone https://github.com/youruser/cvxEDA.git  # clone
+cd cvxEDA                                         # enter folder
+git checkout v1.0.0                               # (optional) pick version
+pip install .                                     # install
+```
+
 ## Quick example
 
 ```python

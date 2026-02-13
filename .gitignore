@@ -13,6 +13,7 @@ octave-core
 *.aux
 *.bbl
 *.blg
+*.brf
 *.dvi
 *.idx
 *.lof
@@ -20,7 +21,21 @@ octave-core
 *.lot
 *.nav
 *.out
+*.pdf_tex
 *.synctex.gz
 *.thm
 *.toc
+*.snm
 *.vrb
+
+# jupyter notebook
+.ipynb_checkpoints/
+
+# Python build
+dist/
+build/
+*.egg-info/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd

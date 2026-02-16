@@ -5,11 +5,9 @@ ______________________________________________________________________________
  Revisions:
     - 07 Nov 2015 First public release
     - 07 Feb 2017 Fixed default alpha to same as paper (8e-4)
-    - 22 Jan 2025 Improved boundary behaviour and enhanced knot specification
-    - 06 Feb 2025 Expanded baseline correction options
  ______________________________________________________________________________
 
- Copyright (C) 2014-2025 Luca Citi, Alberto Greco
+ Copyright (C) 2014-2015 Luca Citi, Alberto Greco
 
  This program is free software; you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -41,7 +39,7 @@ import cvxopt as cv
 import cvxopt.solvers
 
 def cvxEDA(y, delta, tau0=2., tau1=0.7, delta_knot=10., alpha=8e-4, gamma=1e-2,
-           solver=None, options={}, baseline_correction=2):
+           solver=None, options={'reltol': 1e-9}):
     """CVXEDA Convex optimization approach to electrodermal activity processing
 
     This function implements the cvxEDA algorithm described in "cvxEDA: a
@@ -54,16 +52,12 @@ def cvxEDA(y, delta, tau0=2., tau1=0.7, delta_knot=10., alpha=8e-4, gamma=1e-2,
        delta: sampling interval (in seconds) of y
        tau0: slow time constant of the Bateman function
        tau1: fast time constant of the Bateman function
-       delta_knot: specifies the knots of the tonic spline function; can be a
-                   single value (in seconds) representing the spacing between
-                   knots, or an array of equally spaced knot sample indices
+       delta_knot: time between knots of the tonic spline function
        alpha: penalization for the sparse SMNA driver
        gamma: penalization for the tonic spline coefficients
        solver: sparse QP solver to be used, see cvxopt.solvers.qp
        options: solver options, see:
                 http://cvxopt.org/userguide/coneprog.html#algorithm-parameters
-       baseline_correction: baseline correction: 0=none, 1=constant, 2=linear,
-                'spline_offset'=non-penalised spline offset
 
     Returns (see paper for details):
        r: phasic component
@@ -76,7 +70,6 @@ def cvxEDA(y, delta, tau0=2., tau1=0.7, delta_knot=10., alpha=8e-4, gamma=1e-2,
     """
 
     n = len(y)
-    rangen = np.arange(n)
     y = cv.matrix(y)
 
     # bateman ARMA model
@@ -87,46 +80,34 @@ def cvxEDA(y, delta, tau0=2., tau1=0.7, delta_knot=10., alpha=8e-4, gamma=1e-2,
     ma = np.array([1., 2., 1.])
 
     # matrices for ARMA model
-    i = np.concatenate((rangen, rangen[1:], rangen[2:]))
-    j = np.concatenate((rangen, rangen[:-1], rangen[:-2]))
-    A = cv.spmatrix(np.repeat(ar, (n, n - 1, n - 2)), i, j, (n, n))
-    M = cv.spmatrix(np.repeat(ma, (n, n - 1, n - 2)), i, j, (n, n))
+    i = np.arange(2, n)
+    A = cv.spmatrix(np.tile(ar, (n - 2, 1)), np.c_[i, i, i], np.c_[i, i - 1, i - 2], (n, n))
+    M = cv.spmatrix(np.tile(ma, (n - 2, 1)), np.c_[i, i, i], np.c_[i, i - 1, i - 2], (n, n))
 
     # spline
-    if np.size(delta_knot) == 1:  # standard usage: delta_knot represents the interval in seconds between knots
-        delta_knot_s = int(round(delta_knot / delta))
-        knots = np.arange(0, n + delta_knot_s // 2, delta_knot_s)
-    else:  # advanced usage: delta_knot represents an array with indices of the spline knots
-        knots = np.reshape(delta_knot, -1)
-        delta_knot_s = knots[1] - knots[0]
-    spl = np.concatenate((np.arange(1., delta_knot_s), np.arange(delta_knot_s, 0., -1.)))  # order 1
+    delta_knot_s = int(round(delta_knot / delta))
+    spl = np.r_[np.arange(1., delta_knot_s), np.arange(delta_knot_s, 0., -1.)]  # order 1
     spl = np.convolve(spl, spl, 'full')
     spl /= max(spl)
     # matrix of spline regressors
-    i = np.arange(-(len(spl) // 2), (len(spl) + 1) // 2)[:, None] + knots[None, :]
+    i = np.c_[np.arange(-(len(spl) // 2), (len(spl) + 1) // 2)] + np.r_[np.arange(0, n, delta_knot_s)]
     nB = i.shape[1]
     j = np.tile(np.arange(nB), (len(spl), 1))
     p = np.tile(spl, (nB, 1)).T
     valid = (i >= 0) & (i < n)
     B = cv.spmatrix(p[valid], i[valid], j[valid])
 
-    # baseline correction (0=none, 1=constant, 2=linear, 'spline_offset'=non-penalised spline offset)
-    if baseline_correction == 'spline_offset':
-        C = B * cv.matrix(1., (nB, 1))
-        nC = 1
-    else:
-        nC = baseline_correction
-        C = cv.matrix(1., (n, nC)) if nC < 2 else cv.matrix(np.column_stack((np.ones(n), np.arange(1., n + 1.) / n)))
+    # trend
+    C = cv.matrix(np.c_[np.ones(n), np.arange(1., n + 1.) / n])
+    nC = C.size[1]
 
     # Solve the problem:
     # .5*(M*q + B*l + C*d - y)^2 + alpha*sum(A,1)*q + .5*gamma*l'*l
     # s.t. A*q >= 0
 
-    default_options = {'reltol': 1e-9}
     old_options = cv.solvers.options.copy()
     cv.solvers.options.clear()
-    cv.solvers.options.update(default_options)  # set our default options
-    cv.solvers.options.update(options)          # allow user options to extend or overwrite default options
+    cv.solvers.options.update(options)
     if solver == 'conelp':
         # Use conelp
         z = lambda m, n: cv.spmatrix([], [], [], (m, n))
@@ -134,7 +115,7 @@ def cvxEDA(y, delta, tau0=2., tau1=0.7, delta_knot=10., alpha=8e-4, gamma=1e-2,
                        [z(n + 2, nC), C, z(nB + 2, nC)],
                        [z(n, 1), -1, 1, z(n + nB + 2, 1)],
                        [z(2 * n + 2, 1), -1, 1, z(nB, 1)],
-		               [z(n + 2, nB), B, z(2, nB), cv.spmatrix(1., range(nB), range(nB))]])
+                       [z(n + 2, nB), B, z(2, nB), cv.spmatrix(1., range(nB), range(nB))]])
         h = cv.matrix([z(n, 1), .5, .5, y, .5, .5, z(nB, 1)])
         c = cv.matrix([(cv.matrix(alpha, (1, n)) * A).T, z(nC, 1), 1, gamma, z(nB, 1)])
         res = cv.solvers.conelp(c, G, h, dims={'l': n, 'q': [n + 2, nB + 2], 's': []})
@@ -144,7 +125,7 @@ def cvxEDA(y, delta, tau0=2., tau1=0.7, delta_knot=10., alpha=8e-4, gamma=1e-2,
         Mt, Ct, Bt = M.T, C.T, B.T
         H = cv.sparse([[Mt * M, Ct * M, Bt * M],
                        [Mt * C, Ct * C, Bt * C],
-                       [Mt * B, Ct * B, Bt * B + cv.spmatrix(gamma, range(nB), range(nB))]])
+                       [Mt * B, Ct * B, Bt * B + gamma * cv.spmatrix(1., range(nB), range(nB))]])
         f = cv.matrix([(cv.matrix(alpha, (1, n)) * A).T - Mt * y, -(Ct * y), -(Bt * y)])
         res = cv.solvers.qp(H, f, cv.spmatrix(-A.V, A.I, A.J, (n, len(f))), cv.matrix(0., (n, 1)), solver=solver)
         obj = res['primal objective'] + .5 * (y.T * y)
